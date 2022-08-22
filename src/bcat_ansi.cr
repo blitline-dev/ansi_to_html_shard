@@ -13,6 +13,8 @@ class BcatAnsi
 
     BAD_ESC   = /\x08+/
     MALFORMED = /\x1b\[?[\d;]{0,3}/
+    ESC_ONE   = "\x1b"
+    ESC_TWO   = "\x08"
 
     TOKENS = [
       # Xterm
@@ -83,18 +85,19 @@ class BcatAnsi
       STYLES["eb#{c}"] = "background-color:#%02x%02x%02x" % [l, l, l]
     end
 
-    def initialize(input)
-      @input = [input]
+    def initialize
+      @input = Array(String).new
       @stack = Array(TagItem).new
     end
 
-    def to_html
+    def to_html(input : String)
+      @input = [input]
+      @stack = Array(TagItem).new
       buf = Array(String).new
 
       @input.each do |chunk|
         chunk = chunk.gsub(BAD_ESC, "")
-        tkn = tokenize(chunk, buf).to_s
-        buf << tkn
+        tkn = tokenize(chunk, buf)
         buf << stringify_stack if @stack.any?
       end
       buf.join
@@ -147,7 +150,7 @@ class BcatAnsi
     end
 
     def is_raw?(text)
-      !(text.includes?("\x1b") || text.includes?("\x08"))
+      !(text.includes?(ESC_ONE) || text.includes?(ESC_TWO))
     end
 
     def tokenize(text, string_array) : String | Nil
@@ -160,7 +163,8 @@ class BcatAnsi
         pattern = arr[0]
         type = arr[1]
 
-        next unless text.match(pattern)
+        output = text.match(pattern)
+        next unless output
         partition_tuple = text.partition(pattern)
 
         # Push text node
@@ -168,7 +172,6 @@ class BcatAnsi
         match = partition_tuple[1]
         next if match.empty?
         # Set $1
-        text.match(pattern)
 
         case type
         when :xterm
