@@ -1,2 +1,2 @@
 require "spec"
-require "../src/ansi_to_html"
+require "../src/bcat_ansi"
