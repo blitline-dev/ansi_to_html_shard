@@ -11,18 +11,12 @@ class BcatAnsi
   class Ansi
     @input : Array(String)
 
-    BAD_ESC   = /\x08+/
-    MALFORMED = /\x1b\[?[\d;]{0,3}/
-    ESC_ONE   = "\x1b"
-    ESC_TWO   = "\x08"
-
-    TOKENS = [
-      # Xterm
-      Tuple(Regex, Symbol).new(/\x1b\[38;5;(\d+)m/, :xterm),
-
-      # ansi escape sequences that mess with the display
-      Tuple(Regex, Symbol).new(/\x1b\[((?:\d{1,3};?)+|)m/, :display),
-    ]
+    BAD_ESC       = /\x08+/
+    MALFORMED     = /\x1b\[?[\d;]{0,3}/
+    ESC_ONE       = "\x1b"
+    ESC_TWO       = "\x08"
+    DISPLAY_REGEX = /\x1b\[((?:\d{1,3};?)+|)m/
+    XTERM_REGEX   = /\x1b\[38;5;(\d+)m/
 
     ESCAPE = "\x1b"
 
@@ -93,14 +87,16 @@ class BcatAnsi
     def to_html(input : String)
       @input = [input]
       @stack = Array(TagItem).new
-      buf = Array(String).new
 
-      @input.each do |chunk|
-        chunk = chunk.gsub(BAD_ESC, "")
-        tkn = tokenize(chunk, buf)
-        buf << stringify_stack if @stack.any?
+      b = String.build do |io|
+        @input.each do |chunk|
+          chunk = chunk.gsub(BAD_ESC, "")
+          tkn = tokenize(chunk, io)
+          io << stringify_stack if @stack.any?
+        end
       end
-      buf.join
+
+      b.to_s
     end
 
     def push_text(text)
@@ -118,39 +114,62 @@ class BcatAnsi
     end
 
     def stringify_stack
-      output = Array(String).new
+      output = String.build do |io|
+        @stack.each do |tag_item|
+          clean_text = tag_item.text.gsub(MALFORMED, "")
+          io << clean_text
+        end
 
-      @stack.each do |tag_item|
-        clean_text = tag_item.text
-        clean_text = clean_text.gsub(MALFORMED, "")
-        output << clean_text
+        @stack.reverse.map do |tag_item|
+          io << "</#{tag_item.tag}>" if !tag_item.tag.nil?
+        end
+        @stack.clear
       end
-
-      @stack.reverse.map do |tag_item|
-        output << "</#{tag_item.tag}>" if !tag_item.tag.nil?
-      end
-      @stack.clear
-      output.join
+      output.to_s
     end
 
     def xtermy(m) : String | Nil
-      push_style("ef#{m.to_s}")
+      # Clean because we don't have capture
+      m = m.gsub("38;5;", "")
+      push_style("ef#{m}")
       nil
     end
 
     def escapey(m) : String | Nil
       m = "0" if m.strip.empty?
       x = nil
-
       m.chomp(";").split(";").each do |code|
         x = display_code_handler(code.to_i)
       end
-
       x
     end
 
     def is_raw?(text)
       !(text.includes?(ESC_ONE) || text.includes?(ESC_TWO))
+    end
+
+    def handle_xterm(text, string_array)
+      c = 0
+      text.split(DISPLAY_REGEX) do |s|
+        c += 1
+        next if s.empty?
+        if c.even?
+          output = xtermy(s)
+        end
+        push_text(s) if c.odd?
+      end
+    end
+
+    def handle_display(text, string_array)
+      c = 0
+      text.split(DISPLAY_REGEX) do |s|
+        c += 1
+        if c.even?
+          output = escapey(s)
+          string_array << output unless output.nil?
+        end
+        push_text(s) if c.odd?
+      end
     end
 
     def tokenize(text, string_array) : String | Nil
@@ -159,36 +178,17 @@ class BcatAnsi
         return
       end
 
-      TOKENS.each do |arr|
-        pattern = arr[0]
-        type = arr[1]
-
-        output = text.match(pattern)
-        next unless output
-        partition_tuple = text.partition(pattern)
-
-        # Push text node
-        push_text(partition_tuple[0])
-        match = partition_tuple[1]
-        next if match.empty?
-        # Set $1
-
-        case type
-        when :xterm
-          result = xtermy($1)
-          string_array << result unless result.nil?
-          tokenize(partition_tuple[2], string_array)
-          return
-        when :display
-          result = escapey($1)
-          string_array << result unless result.nil?
-          tokenize(partition_tuple[2], string_array)
-          return
-        end
+      if text.match(XTERM_REGEX)
+        handle_xterm(text, string_array)
+        return
+      elsif text.match(DISPLAY_REGEX)
+        handle_display(text, string_array)
+        return
       end
 
       push_text(text)
       nil
+      return
     end
 
     def display_code_handler(data) : String | Nil
