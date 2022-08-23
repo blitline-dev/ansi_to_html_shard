@@ -85,6 +85,12 @@ describe BcatAnsi do
     expect.should eq(AnsiToHtml.new.to_html(text))
   end
 
+  it "resetting a single sequence" do
+    text = "Text before\x1b[1mthis is bold\x1b[0m, but this isn\"t"
+    expect = "Text before<b>this is bold</b>, but this isn\"t"
+    expect.should eq(AnsiToHtml.new.to_html(text))
+  end
+
   it "resetting many sequences" do
     text = "normal, \x1b[1mbold, \x1b[3munderline, \x1b[31mred\x1b[0m, normal"
     expect = "normal, <b>bold, <u>underline, " +
@@ -120,6 +126,12 @@ describe BcatAnsi do
   it "xterm-256" do
     text = "\x1b[38;5;196mhello"
     expect = "<span style=\"color:#ff0000\">hello</span>"
+    expect.should eq(AnsiToHtml.new.to_html(text))
+  end
+
+  it "xterm-256" do
+    text = "Bleebo\x1b[38;5;196mhello"
+    expect = "Bleebo<span style=\"color:#ff0000\">hello</span>"
     expect.should eq(AnsiToHtml.new.to_html(text))
   end
 

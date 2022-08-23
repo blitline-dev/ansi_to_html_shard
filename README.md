@@ -1,6 +1,8 @@
 # ansi_to_html
 
-TODO: Write a description here
+Converts ANSI text to HTML output.
+
+Very similar to ruby gem with same name and bcat ANSI code. Much faster (x10)
 
 ## Installation
 
@@ -9,7 +11,7 @@ TODO: Write a description here
    ```yaml
    dependencies:
      ansi_to_html:
-       github: your-github-user/ansi_to_html
+       github: blitline-dev/ansi_to_html_shard
    ```
 
 2. Run `shards install`
@@ -20,15 +22,24 @@ TODO: Write a description here
 require "ansi_to_html"
 ```
 
-TODO: Write usage instructions here
+To use in your code simply:
 
-## Development
+```crystal
+ansi_converter = AnsiToHtml.new
 
-TODO: Write development instructions here
+html = ansi_converter.to_html("colors: \x1b[30mblack\x1b[37mwhite")
+```
+
+## Notes
+
+Basic support for old terminals.
+Xterm support
+256 Colors Support
+
 
 ## Contributing
 
-1. Fork it (<https://github.com/your-github-user/ansi_to_html/fork>)
+1. Fork it (<https://github.com/blitline-dev/ansi_to_html_shard/fork>)
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
@@ -36,4 +47,4 @@ TODO: Write development instructions here
 
 ## Contributors
 
-- [Jason](https://github.com/your-github-user) - creator and maintainer
+- [Blitline Developers](https://github.com/blitline-dev) - creator and maintainer

@@ -16,9 +16,7 @@ class BcatAnsi
     ESC_ONE       = "\x1b"
     ESC_TWO       = "\x08"
     DISPLAY_REGEX = /\x1b\[((?:\d{1,3};?)+|)m/
-    XTERM_REGEX   = /\x1b\[38;5;(\d+)m/
-
-    ESCAPE = "\x1b"
+    XTERM_REGEX   = /\x1b\[38;5;\d+m/
 
     # Linux console palette
     STYLES = {
@@ -149,28 +147,25 @@ class BcatAnsi
     end
 
     def handle_xterm(text, string_array)
-      c = 0
       results = text.split(DISPLAY_REGEX)
 
       results.each_with_index do |s, c|
         next if s.empty?
 
-        if c.even?
-          output = xtermy(s)
-        end
-        push_text(s) if c.odd?
+        output = xtermy(s) if c.odd?
+        push_text(s) if c.even?
       end
     end
 
     def handle_display(text, string_array)
-      c = 0
-      text.split(DISPLAY_REGEX) do |s|
-        c += 1
-        if c.even?
+      results = text.split(DISPLAY_REGEX)
+
+      results.each_with_index do |s, c|
+        if c.odd?
           output = escapey(s)
           string_array << output unless output.nil?
         end
-        push_text(s) if c.odd?
+        push_text(s) if c.even?
       end
     end
 
@@ -190,7 +185,6 @@ class BcatAnsi
 
       push_text(text)
       nil
-      return
     end
 
     def display_code_handler(data) : String | Nil
