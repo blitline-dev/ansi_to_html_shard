@@ -150,9 +150,11 @@ class BcatAnsi
 
     def handle_xterm(text, string_array)
       c = 0
-      text.split(DISPLAY_REGEX) do |s|
-        c += 1
+      results = text.split(DISPLAY_REGEX)
+
+      results.each_with_index do |s, c|
         next if s.empty?
+
         if c.even?
           output = xtermy(s)
         end
